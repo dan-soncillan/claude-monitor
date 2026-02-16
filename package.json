@@ -1,0 +1,18 @@
+{
+  "name": "claude-monitor",
+  "private": true,
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "dev:server": "turbo dev --filter=@claude-monitor/server",
+    "dev:web": "turbo dev --filter=@claude-monitor/web",
+    "dev:slack": "turbo dev --filter=@claude-monitor/slack"
+  },
+  "packageManager": "bun@1.2.7",
+  "devDependencies": {
+    "turbo": "^2.4.0",
+    "typescript": "^5.7.0"
+  }
+}

@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.turbo/
+*.db
+*.db-wal
+*.db-shm
+.env
+.env.local
+bun.lock
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+.DS_Store
