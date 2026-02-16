@@ -4,7 +4,6 @@ import remarkGfm from "remark-gfm";
 import { useSessionStore } from "../stores/sessionStore";
 import { useEventStore } from "../stores/eventStore";
 import { useApprovalStore } from "../stores/approvalStore";
-import { useCLIOutputStore } from "../stores/cliOutputStore";
 import { StatusBadge } from "./StatusBadge";
 import { EventTimeline } from "./EventTimeline";
 import { ApprovalBanner } from "./ApprovalBanner";
@@ -139,15 +138,12 @@ export function SessionDetail() {
       clearEvents();
       return;
     }
-    // Clear previous session's CLI outputs and events before loading new ones
-    clearCLIOutputs(selectedId);
-    setCurrentCommandId(null);
     clearEvents();
     api.getSessionEvents(selectedId).then(setEvents).catch(console.error);
     api.getApprovals().then(setApprovals).catch(console.error);
     // Mark as read — syncs across all tabs/browsers via WebSocket
     api.markRead(selectedId).catch(console.error);
-  }, [selectedId, setEvents, setApprovals, clearEvents, clearCLIOutputs]);
+  }, [selectedId, setEvents, setApprovals, clearEvents]);
 
   // Auto-archive when session completes (quit/exit)
   useEffect(() => {
@@ -398,31 +394,6 @@ export function SessionDetail() {
           Activity ({events.length})
         </h3>
         <EventTimeline events={events} />
-
-        {/* CLI Output */}
-        {cliOutputs.length > 0 && (
-          <div className="mt-4">
-            <h3 className="text-xs font-semibold text-purple-400 uppercase tracking-wide mb-2">
-              Live Output
-            </h3>
-            <div className="bg-gray-900/80 border border-purple-900/30 rounded-lg p-3 space-y-1">
-              {cliOutputs.map((output, idx) => (
-                <div key={idx}>
-                  {output.output && (
-                    <pre className="text-[11px] text-gray-300 whitespace-pre-wrap font-mono">
-                      {output.output}
-                    </pre>
-                  )}
-                  {output.is_complete && (
-                    <div className="text-[10px] text-purple-500 mt-1">
-                      ─── Command completed ───
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Footer: Prompt input area */}
