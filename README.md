@@ -26,18 +26,53 @@ Backend ──(Bun.spawn: claude -r <sid> -p)──> Claude Code CLI ─┘
 
 ## クイックスタート
 
-### 前提条件
+### 🚀 ワンコマンドセットアップ（推奨）
+
+新しいPCで初めてセットアップする場合：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dan-soncillan/claude-monitor/main/scripts/quick-setup.sh | bash
+```
+
+このスクリプトは以下を自動実行します：
+- Bun と jq のインストール（未インストールの場合）
+- リポジトリのクローン
+- 依存関係のインストール
+- 環境設定
+- Claude Code フックのインストール
+
+セットアップ完了後、以下のコマンドでサーバーを起動：
+
+```bash
+cd ~/claude-monitor
+PATH="$HOME/.bun/bin:$PATH" bun run dev
+```
+
+ブラウザで `http://localhost:5173` を開き、右上の「インストール」ボタンをクリックしてPWAとしてインストールできます。
+
+---
+
+### 📋 手動セットアップ
+
+#### 前提条件
 
 - [Bun](https://bun.sh) v1.2+
 - [jq](https://jqlang.github.io/jq/)（フックスクリプトで使用）
 
-### 1. 依存関係のインストール
+#### 1. リポジトリのクローン
+
+```bash
+git clone https://github.com/dan-soncillan/claude-monitor.git
+cd claude-monitor
+```
+
+#### 2. 依存関係のインストール
 
 ```bash
 bun install
 ```
 
-### 2. 環境設定
+#### 3. 環境設定
 
 ```bash
 cp .env.example .env
@@ -51,7 +86,7 @@ PORT=4001
 
 バックエンドサーバー、Vite プロキシ、フックスクリプトはすべてポート **4001** を前提としています。この設定がない場合、サーバーはデフォルトのポート 4000 で起動し、接続に失敗します。
 
-### 3. Claude Code フックのインストール
+#### 4. Claude Code フックのインストール
 
 ```bash
 ./scripts/install.sh
@@ -63,18 +98,18 @@ PORT=4001
 ./scripts/generate-settings.sh
 ```
 
-### 4. 開発サーバーの起動
+#### 5. 開発サーバーの起動
 
 ```bash
 # バックエンドとフロントエンドを同時に起動
-bun run dev
+PATH="$HOME/.bun/bin:$PATH" bun run dev
 
 # 個別に起動する場合
 bun run dev:server   # バックエンド :4001
 bun run dev:web      # フロントエンド :5173
 ```
 
-### 5. Claude Code セッションの開始
+#### 6. Claude Code セッションの開始
 
 任意のプロジェクトディレクトリで Claude Code を通常通り起動してください。フックがイベントを収集し、`http://localhost:5173` のダッシュボードに表示されます。
 

@@ -91,6 +91,26 @@ export function initDB(dbPath = "claude-monitor.db"): Database {
     db.exec("ALTER TABLE sessions ADD COLUMN notes TEXT");
   } catch { /* already exists */ }
 
+  // Add cost tracking columns (populated via status line)
+  try {
+    db.exec("ALTER TABLE sessions ADD COLUMN cost_usd REAL");
+  } catch { /* already exists */ }
+  try {
+    db.exec("ALTER TABLE sessions ADD COLUMN cost_duration_ms INTEGER");
+  } catch { /* already exists */ }
+  try {
+    db.exec("ALTER TABLE sessions ADD COLUMN cost_api_duration_ms INTEGER");
+  } catch { /* already exists */ }
+  try {
+    db.exec("ALTER TABLE sessions ADD COLUMN total_input_tokens INTEGER");
+  } catch { /* already exists */ }
+  try {
+    db.exec("ALTER TABLE sessions ADD COLUMN total_output_tokens INTEGER");
+  } catch { /* already exists */ }
+  try {
+    db.exec("ALTER TABLE sessions ADD COLUMN context_used_pct REAL");
+  } catch { /* already exists */ }
+
   // Migrate waiting_approval → waiting_input
   db.exec("UPDATE sessions SET status = 'waiting_input' WHERE status = 'waiting_approval'");
 

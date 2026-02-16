@@ -45,6 +45,22 @@ const waitingContextComponents = {
   hr: () => <hr className="border-yellow-800/30 my-2" />,
 };
 
+function formatTokens(tokens: number): string {
+  if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M`;
+  if (tokens >= 1_000) return `${(tokens / 1_000).toFixed(1)}k`;
+  return String(tokens);
+}
+
+function formatDuration(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  if (minutes < 60) return `${minutes}m ${secs}s`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h ${minutes % 60}m`;
+}
+
 export function SessionDetail() {
   const selectedId = useSessionStore((s) => s.selectedSessionId);
   const sessions = useSessionStore((s) => s.sessions);
@@ -180,6 +196,41 @@ export function SessionDetail() {
                 </>
               )}
             </div>
+            {session.cost_usd != null && session.cost_usd > 0 && (
+              <div className="flex items-center gap-3 mt-1 text-[11px] text-gray-500">
+                <span className="text-emerald-400 font-mono">
+                  ${session.cost_usd.toFixed(4)}
+                </span>
+                {session.total_input_tokens != null && (
+                  <>
+                    <span className="text-gray-700">|</span>
+                    <span>
+                      {formatTokens(session.total_input_tokens)} in
+                      {session.total_output_tokens != null &&
+                        ` / ${formatTokens(session.total_output_tokens)} out`}
+                    </span>
+                  </>
+                )}
+                {session.context_used_pct != null && (
+                  <>
+                    <span className="text-gray-700">|</span>
+                    <span className={
+                      session.context_used_pct >= 90 ? "text-red-400" :
+                      session.context_used_pct >= 70 ? "text-yellow-400" :
+                      "text-gray-400"
+                    }>
+                      {Math.round(session.context_used_pct)}% context
+                    </span>
+                  </>
+                )}
+                {session.cost_duration_ms != null && (
+                  <>
+                    <span className="text-gray-700">|</span>
+                    <span>{formatDuration(session.cost_duration_ms)}</span>
+                  </>
+                )}
+              </div>
+            )}
           </div>
           {isActive && (
             <button

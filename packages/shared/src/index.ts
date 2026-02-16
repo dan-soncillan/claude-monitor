@@ -2,6 +2,7 @@ export type {
   Session,
   SessionStatus,
   SessionCreate,
+  SessionCostUpdate,
 } from "./types/session";
 
 export type {

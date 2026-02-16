@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { getDB } from "../db/client";
 import { broadcast } from "../ws/broadcaster";
-import type { Session } from "@claude-monitor/shared";
+import type { Session, SessionCostUpdate } from "@claude-monitor/shared";
 
 const STALE_IDLE_MINUTES = 3;      // Idle sessions (never received a prompt) - delete quickly
 const STALE_GHOST_MINUTES = 5;     // Ghost sessions (no activity) - delete quickly
@@ -201,6 +201,43 @@ app.post("/:id/read", (c) => {
   }
 
   db.query("UPDATE sessions SET read_at = datetime('now') WHERE id = ?").run(session.id);
+  const updated = db.query("SELECT * FROM sessions WHERE id = ?").get(session.id) as Session;
+  broadcast({ type: "session_updated", data: updated, timestamp: new Date().toISOString() });
+
+  return c.json(updated);
+});
+
+// PUT /api/sessions/:id/cost - Update session cost data (from status line)
+app.put("/:id/cost", async (c) => {
+  const db = getDB();
+  const id = c.req.param("id");
+  const session = resolveSessionId(id);
+  if (!session) {
+    return c.json({ error: "Session not found" }, 404);
+  }
+
+  const body = await c.req.json<SessionCostUpdate>();
+
+  // Do NOT update updated_at to avoid triggering read_at loop
+  db.query(`
+    UPDATE sessions SET
+      cost_usd = ?,
+      cost_duration_ms = ?,
+      cost_api_duration_ms = ?,
+      total_input_tokens = ?,
+      total_output_tokens = ?,
+      context_used_pct = ?
+    WHERE id = ?
+  `).run(
+    body.cost_usd ?? null,
+    body.cost_duration_ms ?? null,
+    body.cost_api_duration_ms ?? null,
+    body.total_input_tokens ?? null,
+    body.total_output_tokens ?? null,
+    body.context_used_pct ?? null,
+    session.id
+  );
+
   const updated = db.query("SELECT * FROM sessions WHERE id = ?").get(session.id) as Session;
   broadcast({ type: "session_updated", data: updated, timestamp: new Date().toISOString() });
 

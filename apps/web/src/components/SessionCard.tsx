@@ -33,15 +33,22 @@ export function SessionCard({ session, selected, unseen, onClick }: Props) {
       onClick={onClick}
       className={`w-full text-left p-3 rounded-lg border transition-colors ${borderClass}`}
     >
-      {/* Row 1: Status badge + ID + time */}
+      {/* Row 1: Status badge + ID + cost + time */}
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2">
           <StatusBadge status={session.status} />
           <code className="text-[10px] text-gray-600 font-mono">{shortId}</code>
         </div>
-        <span className="text-[10px] text-gray-600">
-          {timeAgo(session.updated_at)}
-        </span>
+        <div className="flex items-center gap-1.5">
+          {session.cost_usd != null && session.cost_usd > 0 && (
+            <span className="text-[10px] text-emerald-500/70 font-mono">
+              ${session.cost_usd.toFixed(2)}
+            </span>
+          )}
+          <span className="text-[10px] text-gray-600">
+            {timeAgo(session.updated_at)}
+          </span>
+        </div>
       </div>
 
       {/* Row 2: Task prompt (what the user asked) */}
