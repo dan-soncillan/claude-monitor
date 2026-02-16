@@ -70,8 +70,6 @@ export function SessionDetail() {
   const setEvents = useEventStore((s) => s.setEvents);
   const approvals = useApprovalStore((s) => s.approvals);
   const setApprovals = useApprovalStore((s) => s.setApprovals);
-  const cliOutputs = useCLIOutputStore((s) => selectedId ? s.getOutputs(selectedId) : []);
-  const clearCLIOutputs = useCLIOutputStore((s) => s.clearOutputs);
 
   const formatCost = useCostFormat();
   const session = sessions.find((s) => s.id === selectedId);
