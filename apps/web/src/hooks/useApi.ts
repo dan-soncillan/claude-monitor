@@ -30,6 +30,9 @@ export const api = {
   markRead: (id: string) =>
     request<any>(`/sessions/${id}/read`, { method: "POST" }),
 
+  markReviewed: (id: string) =>
+    request<any>(`/sessions/${id}/reviewed`, { method: "POST" }),
+
   updateNotes: (id: string, notes: string) =>
     request<{ ok: boolean }>(`/sessions/${id}/notes`, {
       method: "PUT",
@@ -95,4 +98,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ instruction }),
     }),
+
+  // Monthly costs
+  getCurrentMonthlyCost: () =>
+    request<any>("/monthly-cost/current"),
 };

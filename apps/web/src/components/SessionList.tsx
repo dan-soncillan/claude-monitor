@@ -77,12 +77,16 @@ export function SessionList() {
   const active = sessions.filter(
     (s) => s.status !== "completed" && s.status !== "error"
   );
-  const inactive = sessions.filter(
-    (s) => s.status === "completed" || s.status === "error"
+  const inReview = sessions.filter(
+    (s) => (s.status === "completed" || s.status === "error") && !s.reviewed_at
+  );
+  const completed = sessions.filter(
+    (s) => (s.status === "completed" || s.status === "error") && s.reviewed_at
   );
 
   const activeGroups = groupByDirectory(active);
-  const inactiveGroups = groupByDirectory(inactive);
+  const inReviewGroups = groupByDirectory(inReview);
+  const completedGroups = groupByDirectory(completed);
 
   // clearTarget: null = all, string = specific cwd
   const [clearTarget, setClearTarget] = useState<string | null | undefined>(undefined);
@@ -91,7 +95,7 @@ export function SessionList() {
   const handleClearCompleted = useCallback((cwd?: string) => {
     const cwds = cwd
       ? [cwd]
-      : [...new Set(inactive.map((s) => s.cwd).filter(Boolean))] as string[];
+      : [...new Set([...inReview, ...completed].map((s) => s.cwd).filter(Boolean))] as string[];
     Promise.all(
       cwds.map((c) => api.deleteSessionsByStatus("completed", c))
     )
@@ -99,7 +103,7 @@ export function SessionList() {
       .then(setSessions)
       .catch(console.error);
     setClearTarget(undefined);
-  }, [setSessions, inactive]);
+  }, [setSessions, inReview, completed]);
 
   return (
     <div className="flex flex-col h-full">
@@ -134,12 +138,37 @@ export function SessionList() {
           </div>
         )}
 
-        {/* Completed sessions grouped by directory */}
-        {inactiveGroups.size > 0 && (
+        {/* Pending Review sessions grouped by directory */}
+        {inReviewGroups.size > 0 && (
+          <div>
+            <div className="text-xs font-medium text-yellow-600 uppercase px-1 mb-2">
+              Pending Review ({inReview.length})
+            </div>
+            {[...inReviewGroups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([dir, dirSessions]) => (
+              <div key={dir} className="mb-3">
+                <DirectoryHeader dir={dir} cwd={dirSessions[0].cwd} />
+                <div className="space-y-1.5 pl-1">
+                  {dirSessions.map((s) => (
+                    <SessionCard
+                      key={s.id}
+                      session={s}
+                      selected={selectedId === s.id}
+                      unseen={isUnseen(s.id)}
+                      onClick={() => handleSessionClick(s)}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Archived sessions grouped by directory */}
+        {completedGroups.size > 0 && (
           <div>
             <div className="flex items-center justify-between px-1 mb-2">
-              <span className="text-xs font-medium text-gray-500 uppercase">
-                Completed ({inactive.length})
+              <span className="text-xs font-medium text-gray-600 uppercase">
+                Archived ({completed.length})
               </span>
               <button
                 onClick={() => setClearTarget(null)}
@@ -149,7 +178,7 @@ export function SessionList() {
                 Clear all
               </button>
             </div>
-            {[...inactiveGroups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([dir, dirSessions]) => (
+            {[...completedGroups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([dir, dirSessions]) => (
               <div key={dir} className="mb-3">
                 <DirectoryHeader dir={dir} cwd={dirSessions[0].cwd} onClear={() => setClearTarget(dirSessions[0].cwd)} />
                 <div className="space-y-1.5 pl-1">
@@ -179,9 +208,10 @@ export function SessionList() {
 
       {showClearConfirm && (() => {
         const targetCwd = clearTarget;
+        const allInactive = [...inReview, ...completed];
         const targetSessions = targetCwd
-          ? inactive.filter((s) => s.cwd === targetCwd)
-          : inactive;
+          ? allInactive.filter((s) => s.cwd === targetCwd)
+          : allInactive;
         const targetName = targetCwd
           ? targetCwd.split("/").filter(Boolean).slice(-1)[0] || targetCwd
           : null;

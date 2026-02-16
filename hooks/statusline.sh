@@ -28,11 +28,22 @@ if [ -n "$SESSION_ID" ] && [ -n "$COST_USD" ]; then
     --connect-timeout 1 --max-time 2 2>/dev/null &
 fi
 
-# --- Part 2: Display monthly cost (existing behavior) ---
-USD=$(npx ccusage@16.2.0 monthly --json --order desc 2>/dev/null | jq -r '.monthly[0].totalCost')
+# --- Part 2: Display monthly cost + POST to monitor ---
+CCUSAGE_JSON=$(npx ccusage@16.2.0 monthly --json --order desc 2>/dev/null)
+USD=$(echo "$CCUSAGE_JSON" | jq -r '.monthly[0].totalCost // empty')
+
 if [ -z "$USD" ] || [ "$USD" = "null" ]; then
   echo "💰 ¥-- monthly"
   exit 0
+fi
+
+# POST monthly cost to monitor (background, non-blocking)
+MONTH=$(echo "$CCUSAGE_JSON" | jq -r '.monthly[0].month // empty')
+if [ -n "$MONTH" ]; then
+  curl -s -X POST "${MONITOR_URL}/api/monthly-cost" \
+    -H "Content-Type: application/json" \
+    -d "$(echo "$CCUSAGE_JSON" | jq -c '.monthly[0]')" \
+    --connect-timeout 1 --max-time 2 2>/dev/null &
 fi
 
 # Get USD/JPY rate (cached for 6 hours)

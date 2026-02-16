@@ -1,5 +1,6 @@
 import type { Session } from "@claude-monitor/shared";
 import { StatusBadge } from "./StatusBadge";
+import { useCostFormat } from "../hooks/useCostFormat";
 
 interface Props {
   session: Session;
@@ -21,6 +22,7 @@ function timeAgo(dateStr: string): string {
 
 export function SessionCard({ session, selected, unseen, onClick }: Props) {
   const shortId = session.id.slice(0, 8);
+  const formatCost = useCostFormat();
 
   const borderClass = selected
     ? "bg-blue-500/10 border-blue-500/30"
@@ -42,7 +44,7 @@ export function SessionCard({ session, selected, unseen, onClick }: Props) {
         <div className="flex items-center gap-1.5">
           {session.cost_usd != null && session.cost_usd > 0 && (
             <span className="text-[10px] text-emerald-500/70 font-mono">
-              ${session.cost_usd.toFixed(2)}
+              {formatCost(session.cost_usd)}
             </span>
           )}
           <span className="text-[10px] text-gray-600">

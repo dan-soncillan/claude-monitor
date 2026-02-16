@@ -1,4 +1,4 @@
-import type { Session } from "./session";
+import type { Session, MonthlyCost } from "./session";
 import type { Event } from "./event";
 import type { Approval } from "./approval";
 
@@ -11,11 +11,12 @@ export type WSMessageType =
   | "approval_updated"
   | "cli_output"
   | "memory_alert"
+  | "monthly_cost_updated"
   | "connected";
 
 export interface WSMessage {
   type: WSMessageType;
-  data: Session | Session[] | Event | Approval | CLIOutput | MemoryAlert | ConnectionInfo | { id: string };
+  data: Session | Session[] | Event | Approval | CLIOutput | MemoryAlert | MonthlyCost | ConnectionInfo | { id: string };
   timestamp: string;
 }
 

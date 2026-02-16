@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { CLIOutput } from "@claude-monitor/shared";
 import { useSessionStore } from "../stores/sessionStore";
 import { useEventStore } from "../stores/eventStore";
 import { useApprovalStore } from "../stores/approvalStore";
+import { useCLIOutputStore } from "../stores/cliOutputStore";
 import { StatusBadge } from "./StatusBadge";
 import { EventTimeline } from "./EventTimeline";
 import { ApprovalBanner } from "./ApprovalBanner";
@@ -71,6 +71,8 @@ export function SessionDetail() {
   const setEvents = useEventStore((s) => s.setEvents);
   const approvals = useApprovalStore((s) => s.approvals);
   const setApprovals = useApprovalStore((s) => s.setApprovals);
+  const cliOutputs = useCLIOutputStore((s) => selectedId ? s.getOutputs(selectedId) : []);
+  const clearCLIOutputs = useCLIOutputStore((s) => s.clearOutputs);
 
   const formatCost = useCostFormat();
   const session = sessions.find((s) => s.id === selectedId);
@@ -80,8 +82,6 @@ export function SessionDetail() {
   // Prompt input state
   const [promptInput, setPromptInput] = useState("");
   const [isSendingPrompt, setIsSendingPrompt] = useState(false);
-  const [cliOutputs, setCliOutputs] = useState<CLIOutput[]>([]);
-  const [currentCommandId, setCurrentCommandId] = useState<string | null>(null);
 
   // Notes state
   const [notesText, setNotesText] = useState(session?.notes || "");
@@ -137,49 +137,24 @@ export function SessionDetail() {
   useEffect(() => {
     if (!selectedId) {
       clearEvents();
-      setCliOutputs([]);
-      setCurrentCommandId(null);
       return;
     }
-    // Clear previous session's events before loading new ones
-    clearEvents();
-    setCliOutputs([]);
+    // Clear previous session's CLI outputs and events before loading new ones
+    clearCLIOutputs(selectedId);
     setCurrentCommandId(null);
+    clearEvents();
     api.getSessionEvents(selectedId).then(setEvents).catch(console.error);
     api.getApprovals().then(setApprovals).catch(console.error);
     // Mark as read — syncs across all tabs/browsers via WebSocket
     api.markRead(selectedId).catch(console.error);
-  }, [selectedId, setEvents, setApprovals, clearEvents]);
+  }, [selectedId, setEvents, setApprovals, clearEvents, clearCLIOutputs]);
 
-  // Listen to WebSocket for CLI output
+  // Auto-archive when session completes (quit/exit)
   useEffect(() => {
-    if (!selectedId) return;
-
-    const handleMessage = (event: MessageEvent) => {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.type === "cli_output") {
-          const cliOutput = msg.data as CLIOutput;
-          if (cliOutput.session_id === selectedId) {
-            setCliOutputs((prev) => [...prev, cliOutput]);
-          }
-        }
-      } catch (e) {
-        // Ignore parse errors
-      }
-    };
-
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
-    const ws = new WebSocket(wsUrl);
-
-    ws.addEventListener("message", handleMessage);
-
-    return () => {
-      ws.removeEventListener("message", handleMessage);
-      ws.close();
-    };
-  }, [selectedId]);
+    if (session && session.status === "completed" && !session.reviewed_at) {
+      api.markReviewed(session.id).catch(console.error);
+    }
+  }, [session?.status, session?.reviewed_at]);
 
   if (!selectedId || !session) {
     return (
@@ -219,8 +194,7 @@ export function SessionDetail() {
 
     setIsSendingPrompt(true);
     try {
-      const result = await api.sendInstruction(session.id, promptInput.trim());
-      setCurrentCommandId(result.command_id);
+      await api.sendInstruction(session.id, promptInput.trim());
       setPromptInput("");
     } catch (error) {
       console.error("Failed to send prompt:", error);
@@ -310,7 +284,7 @@ export function SessionDetail() {
             <button
               onClick={handleMarkReviewed}
               className="p-1.5 text-yellow-600 hover:text-yellow-400 transition-colors rounded-lg hover:bg-gray-800 shrink-0"
-              title="Mark as reviewed"
+              title="Archive (mark as reviewed)"
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                 <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .044 1.06l-10.5 11.5a.75.75 0 0 1-1.060.039L4.5 12.75a.75.75 0 1 1 1.06-1.06l2.44 2.44 9.963-10.875a.75.75 0 0 1 1.06-.044Z" clipRule="evenodd" />

@@ -48,10 +48,23 @@ export function EditorLink({ cwd, terminalInfo }: EditorLinkProps) {
 
   const handleTerminalClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (editor === "terminal" && terminalInfo) {
-      const cmd = generateTerminalReconnectCommand(terminalInfo);
-      if (cmd) {
-        navigator.clipboard.writeText(cmd).catch(console.error);
+    if (editor === "terminal") {
+      if (terminalInfo) {
+        const cmd = generateTerminalReconnectCommand(terminalInfo);
+        if (cmd) {
+          navigator.clipboard.writeText(cmd)
+            .then(() => {
+              // Show brief visual feedback
+              const btn = e.currentTarget as HTMLButtonElement;
+              const original = btn.textContent;
+              btn.textContent = "Copied!";
+              setTimeout(() => { btn.textContent = original; }, 2000);
+            })
+            .catch(console.error);
+        }
+      } else {
+        // Terminal info not available - show alert to user
+        alert("Terminal session info not available. This session may not have started in tmux or screen.");
       }
     }
   };
@@ -61,9 +74,8 @@ export function EditorLink({ cwd, terminalInfo }: EditorLinkProps) {
       {editor === "terminal" ? (
         <button
           onClick={handleTerminalClick}
-          className="text-[11px] text-emerald-400 hover:text-emerald-300 bg-emerald-950/30 border border-emerald-900/30 rounded px-1.5 py-0.5 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-default"
+          className="text-[11px] text-emerald-400 hover:text-emerald-300 bg-emerald-950/30 border border-emerald-900/30 rounded px-1.5 py-0.5 transition-colors cursor-pointer active:text-emerald-200 active:bg-emerald-900/50"
           title={title}
-          disabled={!terminalInfo}
         >
           {label}
         </button>

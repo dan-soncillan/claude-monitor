@@ -1,10 +1,12 @@
 import { useEffect, useRef, useCallback } from "react";
-import type { WSMessage, Event, Session, MemoryAlert } from "@claude-monitor/shared";
+import type { WSMessage, Event, Session, MonthlyCost, MemoryAlert, CLIOutput } from "@claude-monitor/shared";
 import { useSessionStore } from "../stores/sessionStore";
 import { useEventStore } from "../stores/eventStore";
 import { useApprovalStore } from "../stores/approvalStore";
 import { useSettingsStore } from "../stores/settingsStore";
 import { useAlertStore } from "../stores/alertStore";
+import { useMonthlyCostStore } from "../stores/monthlyCostStore";
+import { useCLIOutputStore } from "../stores/cliOutputStore";
 import { api } from "./useApi";
 
 const SESSION_POLL_INTERVAL = 60_000; // 60 seconds
@@ -25,6 +27,7 @@ export function useWebSocket() {
   const addEvent = useEventStore((s) => s.addEvent);
   const addApproval = useApprovalStore((s) => s.addApproval);
   const updateApproval = useApprovalStore((s) => s.updateApproval);
+  const addCLIOutput = useCLIOutputStore((s) => s.addOutput);
 
   const connect = useCallback(() => {
     // Close existing connection before creating a new one
@@ -85,8 +88,16 @@ export function useWebSocket() {
           case "approval_updated":
             updateApproval(msg.data as any);
             break;
+          case "cli_output": {
+            const cliOutput = msg.data as CLIOutput;
+            addCLIOutput(cliOutput.session_id, cliOutput);
+            break;
+          }
           case "memory_alert":
             useAlertStore.getState().addAlert(msg.data as MemoryAlert);
+            break;
+          case "monthly_cost_updated":
+            useMonthlyCostStore.getState().setCurrentMonthCost(msg.data as MonthlyCost);
             break;
           case "connected":
             console.log("[WS]", (msg.data as any).message);
@@ -143,9 +154,12 @@ export function useWebSocket() {
     };
   }, [setSessions]);
 
-  // Load server settings on mount
+  // Load server settings and current month cost on mount
   useEffect(() => {
     useSettingsStore.getState().loadServerSettings();
+    api.getCurrentMonthlyCost()
+      .then((cost) => useMonthlyCostStore.getState().setCurrentMonthCost(cost))
+      .catch(console.error);
   }, []);
 
   useEffect(() => {

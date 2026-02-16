@@ -10,6 +10,7 @@ import approvalsRouter from "./routes/approvals";
 import rulesRouter from "./routes/rules";
 import commandsRouter, { killAllProcesses } from "./routes/commands";
 import settingsRouter from "./routes/settings";
+import monthlyCostsRouter from "./routes/monthly-costs";
 
 const app = new Hono();
 
@@ -17,7 +18,7 @@ const app = new Hono();
 app.use("*", cors());
 // Only log non-polling requests to reduce noise
 const QUIET_GET_PATHS = new Set(["/api/sessions", "/api/health", "/api/approvals"]);
-const QUIET_PATH_SUFFIXES = ["/read"];
+const QUIET_PATH_SUFFIXES = ["/read", "/monthly-cost"];
 app.use("*", async (c, next) => {
   const path = c.req.path;
   if (c.req.method === "GET" && QUIET_GET_PATHS.has(path)) {
@@ -52,6 +53,7 @@ app.route("/api/rules", rulesRouter);
 app.route("/api/sessions", commandsRouter);
 app.route("/api", commandsRouter);
 app.route("/api/settings", settingsRouter);
+app.route("/api/monthly-cost", monthlyCostsRouter);
 
 // Initialize DB on startup
 getDB();

@@ -3,6 +3,9 @@ export type {
   SessionStatus,
   SessionCreate,
   SessionCostUpdate,
+  MonthlyCost,
+  MonthlyCostUpdate,
+  TerminalInfo,
 } from "./types/session";
 
 export type {

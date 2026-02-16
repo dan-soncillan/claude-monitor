@@ -1,4 +1,4 @@
-import { useSettingsStore, type EditorType } from "../stores/settingsStore";
+import { useSettingsStore, type EditorType, type CurrencyType } from "../stores/settingsStore";
 
 interface Props {
   onClose: () => void;
@@ -10,11 +10,17 @@ export function SettingsDialog({ onClose }: Props) {
   const autoOpenOnClick = useSettingsStore((s) => s.autoOpenEditorOnClick);
   const macNotifications = useSettingsStore((s) => s.macNotifications);
   const macNotificationSound = useSettingsStore((s) => s.macNotificationSound);
+  const currency = useSettingsStore((s) => s.currency);
   const setSetting = useSettingsStore((s) => s.setSetting);
 
   const editors: { value: EditorType; label: string }[] = [
     { value: "cursor", label: "Cursor" },
     { value: "vscode", label: "VSCode" },
+  ];
+
+  const currencies: { value: CurrencyType; label: string }[] = [
+    { value: "usd", label: "USD ($)" },
+    { value: "jpy", label: "JPY (¥)" },
   ];
 
   return (
@@ -51,6 +57,28 @@ export function SettingsDialog({ onClose }: Props) {
                   }`}
                 >
                   {e.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Currency selection */}
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-2">
+              Cost currency
+            </label>
+            <div className="flex gap-2">
+              {currencies.map((c) => (
+                <button
+                  key={c.value}
+                  onClick={() => setSetting("currency", c.value)}
+                  className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                    currency === c.value
+                      ? "bg-blue-950/40 border-blue-600 text-blue-300"
+                      : "bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600"
+                  }`}
+                >
+                  {c.label}
                 </button>
               ))}
             </div>
