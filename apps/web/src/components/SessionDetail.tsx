@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import type { CLIOutput } from "@claude-monitor/shared";
 import { useSessionStore } from "../stores/sessionStore";
 import { useEventStore } from "../stores/eventStore";
 import { useApprovalStore } from "../stores/approvalStore";
@@ -10,6 +11,7 @@ import { ApprovalBanner } from "./ApprovalBanner";
 import { EditorLink } from "./EditorLink";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { api } from "../hooks/useApi";
+import { useCostFormat } from "../hooks/useCostFormat";
 
 /** Copy text and show brief feedback */
 function CopyButton({ text, label }: { text: string; label: string }) {
@@ -70,9 +72,16 @@ export function SessionDetail() {
   const approvals = useApprovalStore((s) => s.approvals);
   const setApprovals = useApprovalStore((s) => s.setApprovals);
 
+  const formatCost = useCostFormat();
   const session = sessions.find((s) => s.id === selectedId);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [contextCollapsed, setContextCollapsed] = useState(session?.status !== "waiting_input");
+
+  // Prompt input state
+  const [promptInput, setPromptInput] = useState("");
+  const [isSendingPrompt, setIsSendingPrompt] = useState(false);
+  const [cliOutputs, setCliOutputs] = useState<CLIOutput[]>([]);
+  const [currentCommandId, setCurrentCommandId] = useState<string | null>(null);
 
   // Notes state
   const [notesText, setNotesText] = useState(session?.notes || "");
@@ -128,15 +137,49 @@ export function SessionDetail() {
   useEffect(() => {
     if (!selectedId) {
       clearEvents();
+      setCliOutputs([]);
+      setCurrentCommandId(null);
       return;
     }
     // Clear previous session's events before loading new ones
     clearEvents();
+    setCliOutputs([]);
+    setCurrentCommandId(null);
     api.getSessionEvents(selectedId).then(setEvents).catch(console.error);
     api.getApprovals().then(setApprovals).catch(console.error);
     // Mark as read — syncs across all tabs/browsers via WebSocket
     api.markRead(selectedId).catch(console.error);
   }, [selectedId, setEvents, setApprovals, clearEvents]);
+
+  // Listen to WebSocket for CLI output
+  useEffect(() => {
+    if (!selectedId) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === "cli_output") {
+          const cliOutput = msg.data as CLIOutput;
+          if (cliOutput.session_id === selectedId) {
+            setCliOutputs((prev) => [...prev, cliOutput]);
+          }
+        }
+      } catch (e) {
+        // Ignore parse errors
+      }
+    };
+
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const ws = new WebSocket(wsUrl);
+
+    ws.addEventListener("message", handleMessage);
+
+    return () => {
+      ws.removeEventListener("message", handleMessage);
+      ws.close();
+    };
+  }, [selectedId]);
 
   if (!selectedId || !session) {
     return (
@@ -165,6 +208,22 @@ export function SessionDetail() {
 
   const handleMarkCompleted = () => {
     api.completeSession(session.id).catch(console.error);
+  };
+
+  const handleSendPrompt = async () => {
+    if (!session || !promptInput.trim() || isSendingPrompt) return;
+
+    setIsSendingPrompt(true);
+    try {
+      const result = await api.sendInstruction(session.id, promptInput.trim());
+      setCurrentCommandId(result.command_id);
+      setPromptInput("");
+    } catch (error) {
+      console.error("Failed to send prompt:", error);
+      alert(`Failed to send prompt: ${error}`);
+    } finally {
+      setIsSendingPrompt(false);
+    }
   };
 
   return (
@@ -199,7 +258,7 @@ export function SessionDetail() {
             {session.cost_usd != null && session.cost_usd > 0 && (
               <div className="flex items-center gap-3 mt-1 text-[11px] text-gray-500">
                 <span className="text-emerald-400 font-mono">
-                  ${session.cost_usd.toFixed(4)}
+                  {formatCost(session.cost_usd, "detail")}
                 </span>
                 {session.total_input_tokens != null && (
                   <>
@@ -350,14 +409,74 @@ export function SessionDetail() {
           Activity ({events.length})
         </h3>
         <EventTimeline events={events} />
+
+        {/* CLI Output */}
+        {cliOutputs.length > 0 && (
+          <div className="mt-4">
+            <h3 className="text-xs font-semibold text-purple-400 uppercase tracking-wide mb-2">
+              Live Output
+            </h3>
+            <div className="bg-gray-900/80 border border-purple-900/30 rounded-lg p-3 space-y-1">
+              {cliOutputs.map((output, idx) => (
+                <div key={idx}>
+                  {output.output && (
+                    <pre className="text-[11px] text-gray-300 whitespace-pre-wrap font-mono">
+                      {output.output}
+                    </pre>
+                  )}
+                  {output.is_complete && (
+                    <div className="text-[10px] text-purple-500 mt-1">
+                      ─── Command completed ───
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Footer: context-dependent action area */}
-      <div className="p-4 border-t border-gray-800">
+      {/* Footer: Prompt input area */}
+      <div className="p-4 border-t border-gray-800 space-y-3">
+        {/* Prompt input form */}
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+              Send Prompt
+            </span>
+            {isSendingPrompt && (
+              <span className="text-xs text-purple-400 animate-pulse">Sending...</span>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <textarea
+              value={promptInput}
+              onChange={(e) => setPromptInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault();
+                  handleSendPrompt();
+                }
+              }}
+              placeholder="Type your instruction here... (Cmd/Ctrl+Enter to send)"
+              className="flex-1 bg-gray-900/60 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-600 resize-none focus:outline-none focus:border-purple-500 transition-colors h-20"
+              disabled={isSendingPrompt}
+            />
+            <button
+              onClick={handleSendPrompt}
+              disabled={!promptInput.trim() || isSendingPrompt}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg transition-colors font-medium text-sm h-20 shrink-0"
+            >
+              Send
+            </button>
+          </div>
+        </div>
+
+        {/* Session info (original footer content) */}
         {isActive && (
-          <div>
-            <div className="text-xs text-yellow-500/80 mb-2">
-              This session is active in a terminal. Use the terminal to interact, or copy the resume command:
+          <div className="pt-3 border-t border-gray-800/50">
+            <div className="text-xs text-gray-500 mb-2">
+              Quick actions:
             </div>
             <div className="flex gap-2">
               <CopyButton

@@ -88,4 +88,11 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(settings),
     }),
+
+  // Commands
+  sendInstruction: (sessionId: string, instruction: string) =>
+    request<{ command_id: string; status: string }>(`/sessions/${sessionId}/send`, {
+      method: "POST",
+      body: JSON.stringify({ instruction }),
+    }),
 };
