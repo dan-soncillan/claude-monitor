@@ -210,6 +210,10 @@ export function SessionDetail() {
     api.completeSession(session.id).catch(console.error);
   };
 
+  const handleMarkReviewed = () => {
+    api.markReviewed(session.id).catch(console.error);
+  };
+
   const handleSendPrompt = async () => {
     if (!session || !promptInput.trim() || isSendingPrompt) return;
 
@@ -234,7 +238,7 @@ export function SessionDetail() {
         <div className="flex items-center gap-2.5 mb-3 text-sm text-gray-300 font-mono bg-gray-800/60 rounded-lg px-3 py-2.5">
           <span className="text-gray-400 text-base shrink-0">&#128193;</span>
           <span className="truncate flex-1" title={session.cwd}>{session.cwd || "unknown"}</span>
-          <EditorLink cwd={session.cwd} />
+          <EditorLink cwd={session.cwd} terminalInfo={session.terminal_info} />
         </div>
         <div className="flex items-center gap-3">
           <StatusBadge status={session.status} />
@@ -299,6 +303,17 @@ export function SessionDetail() {
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                 <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z" clipRule="evenodd" />
+              </svg>
+            </button>
+          )}
+          {!isActive && !session.reviewed_at && (
+            <button
+              onClick={handleMarkReviewed}
+              className="p-1.5 text-yellow-600 hover:text-yellow-400 transition-colors rounded-lg hover:bg-gray-800 shrink-0"
+              title="Mark as reviewed"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .044 1.06l-10.5 11.5a.75.75 0 0 1-1.060.039L4.5 12.75a.75.75 0 1 1 1.06-1.06l2.44 2.44 9.963-10.875a.75.75 0 0 1 1.06-.044Z" clipRule="evenodd" />
               </svg>
             </button>
           )}

@@ -11,6 +11,18 @@ const MAX_EVENTS_PER_SESSION = parseInt(process.env.CLEANUP_MAX_EVENTS_PER_SESSI
 
 const app = new Hono();
 
+/** Parse terminal_info JSON field if it exists */
+function parseSessionTerminalInfo(session: any): Session {
+  if (session.terminal_info && typeof session.terminal_info === "string") {
+    try {
+      session.terminal_info = JSON.parse(session.terminal_info);
+    } catch {
+      session.terminal_info = null;
+    }
+  }
+  return session as Session;
+}
+
 /** Delete a session and its related data */
 function deleteSessionCascade(db: ReturnType<typeof getDB>, condition: string, params: (string | number)[]) {
   // Find sessions to delete
@@ -117,6 +129,9 @@ app.get("/", (c) => {
       .all() as Session[];
   }
 
+  // Parse terminal_info JSON for each session
+  sessions = sessions.map(parseSessionTerminalInfo);
+
   return c.json(sessions);
 });
 
@@ -134,12 +149,13 @@ function resolveSessionId(id: string): Session | null {
 // GET /api/sessions/:id - Get session by ID (supports prefix)
 app.get("/:id", (c) => {
   const id = c.req.param("id");
-  const session = resolveSessionId(id);
+  let session = resolveSessionId(id);
 
   if (!session) {
     return c.json({ error: "Session not found" }, 404);
   }
 
+  session = parseSessionTerminalInfo(session);
   return c.json(session);
 });
 
@@ -180,7 +196,8 @@ app.post("/:id/complete", (c) => {
     `UPDATE sessions SET status = 'completed', last_activity = COALESCE(last_activity, 'Manually completed'), updated_at = datetime('now') WHERE id = ?`
   ).run(session.id);
 
-  const updated = db.query("SELECT * FROM sessions WHERE id = ?").get(session.id) as Session;
+  let updated = db.query("SELECT * FROM sessions WHERE id = ?").get(session.id) as Session;
+  updated = parseSessionTerminalInfo(updated);
   broadcast({ type: "session_updated", data: updated, timestamp: new Date().toISOString() });
 
   return c.json(updated);
@@ -197,11 +214,34 @@ app.post("/:id/read", (c) => {
 
   // Skip if already read after the latest update (prevents broadcast loop)
   if (session.read_at && session.updated_at && session.read_at >= session.updated_at) {
-    return c.json(session);
+    return c.json(parseSessionTerminalInfo(session));
   }
 
   db.query("UPDATE sessions SET read_at = datetime('now') WHERE id = ?").run(session.id);
-  const updated = db.query("SELECT * FROM sessions WHERE id = ?").get(session.id) as Session;
+  let updated = db.query("SELECT * FROM sessions WHERE id = ?").get(session.id) as Session;
+  updated = parseSessionTerminalInfo(updated);
+  broadcast({ type: "session_updated", data: updated, timestamp: new Date().toISOString() });
+
+  return c.json(updated);
+});
+
+// POST /api/sessions/:id/reviewed - Mark a session as reviewed
+app.post("/:id/reviewed", (c) => {
+  const db = getDB();
+  const id = c.req.param("id");
+  const session = resolveSessionId(id);
+  if (!session) {
+    return c.json({ error: "Session not found" }, 404);
+  }
+
+  // Skip if already reviewed
+  if (session.reviewed_at) {
+    return c.json(parseSessionTerminalInfo(session));
+  }
+
+  db.query("UPDATE sessions SET reviewed_at = datetime('now'), updated_at = datetime('now') WHERE id = ?").run(session.id);
+  let updated = db.query("SELECT * FROM sessions WHERE id = ?").get(session.id) as Session;
+  updated = parseSessionTerminalInfo(updated);
   broadcast({ type: "session_updated", data: updated, timestamp: new Date().toISOString() });
 
   return c.json(updated);
@@ -238,7 +278,8 @@ app.put("/:id/cost", async (c) => {
     session.id
   );
 
-  const updated = db.query("SELECT * FROM sessions WHERE id = ?").get(session.id) as Session;
+  let updated = db.query("SELECT * FROM sessions WHERE id = ?").get(session.id) as Session;
+  updated = parseSessionTerminalInfo(updated);
   broadcast({ type: "session_updated", data: updated, timestamp: new Date().toISOString() });
 
   return c.json(updated);

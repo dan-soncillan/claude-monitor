@@ -73,17 +73,20 @@ app.post("/", async (c) => {
   // Ensure session exists (upsert) — hooks may arrive before session_start
   const inputCwd = (tool_input as any)?.cwd || (body as any).cwd || "";
   const inputModel = (tool_input as any)?.model || null;
+  const inputTerminalInfo = (tool_input as any)?.terminal_info || null;
+  const terminalInfoJson = inputTerminalInfo ? JSON.stringify(inputTerminalInfo) : null;
 
   if (event_type === "session_start") {
     db.query(
-      `INSERT INTO sessions (id, status, cwd, model, updated_at)
-       VALUES (?, 'idle', ?, ?, datetime('now'))
+      `INSERT INTO sessions (id, status, cwd, model, terminal_info, updated_at)
+       VALUES (?, 'idle', ?, ?, ?, datetime('now'))
        ON CONFLICT(id) DO UPDATE SET
          status = CASE WHEN sessions.status = 'idle' THEN 'idle' ELSE sessions.status END,
          cwd = CASE WHEN sessions.cwd = '' OR sessions.cwd IS NULL THEN ? ELSE sessions.cwd END,
          model = COALESCE(?, model),
+         terminal_info = COALESCE(?, terminal_info),
          updated_at = datetime('now')`
-    ).run(session_id, inputCwd, inputModel, inputCwd, inputModel);
+    ).run(session_id, inputCwd, inputModel, terminalInfoJson, inputCwd, inputModel, terminalInfoJson);
 
     // Carry forward context from predecessor session in same cwd
     if (inputCwd) {

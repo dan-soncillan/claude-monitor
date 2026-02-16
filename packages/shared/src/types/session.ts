@@ -5,6 +5,12 @@ export type SessionStatus =
   | "completed"
   | "error";
 
+export interface TerminalInfo {
+  type: "tmux" | "screen" | "wezterm" | "other";
+  session_id: string;
+  pane_id?: string;
+}
+
 export interface Session {
   id: string;
   status: SessionStatus;
@@ -16,6 +22,8 @@ export interface Session {
   slack_thread_ts?: string;
   notes?: string;
   read_at?: string;
+  reviewed_at?: string;
+  terminal_info?: TerminalInfo | null;
   created_at: string;
   updated_at: string;
 
@@ -42,4 +50,25 @@ export interface SessionCreate {
   cwd: string;
   task_description?: string;
   model?: string;
+}
+
+export interface MonthlyCost {
+  month: string;
+  total_cost_usd: number;
+  input_tokens?: number;
+  output_tokens?: number;
+  cache_creation_tokens?: number;
+  cache_read_tokens?: number;
+  total_tokens?: number;
+  updated_at: string;
+}
+
+export interface MonthlyCostUpdate {
+  month: string;
+  totalCost: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  cacheCreationTokens?: number;
+  cacheReadTokens?: number;
+  totalTokens?: number;
 }

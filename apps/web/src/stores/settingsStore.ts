@@ -1,7 +1,8 @@
 import { create } from "zustand";
 import { api } from "../hooks/useApi";
 
-export type EditorType = "cursor" | "vscode";
+export type EditorType = "cursor" | "vscode" | "terminal";
+export type CurrencyType = "usd" | "jpy";
 
 interface Settings {
   editor: EditorType;
@@ -9,6 +10,7 @@ interface Settings {
   autoOpenEditorOnClick: boolean;
   macNotifications: boolean;
   macNotificationSound: boolean;
+  currency: CurrencyType;
 }
 
 interface SettingsState extends Settings {
@@ -29,6 +31,7 @@ function loadSettings(): Settings {
     autoOpenEditorOnClick: false,
     macNotifications: false,
     macNotificationSound: true,
+    currency: "usd",
   };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -63,6 +66,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
         autoOpenEditorOnClick: state.autoOpenEditorOnClick,
         macNotifications: state.macNotifications,
         macNotificationSound: state.macNotificationSound,
+        currency: state.currency,
         [key]: value,
       };
       persistSettings(next);
@@ -80,8 +84,9 @@ export const useSettingsStore = create<SettingsState>((set) => ({
           editor: state.editor,
           autoOpenEditorOnWaitingInput: state.autoOpenEditorOnWaitingInput,
           autoOpenEditorOnClick: state.autoOpenEditorOnClick,
+          currency: state.currency,
           macNotifications: serverSettings.macNotifications ?? false,
-        macNotificationSound: serverSettings.macNotificationSound ?? true,
+          macNotificationSound: serverSettings.macNotificationSound ?? true,
           // Server editor setting takes precedence
           ...(serverSettings.editor ? { editor: serverSettings.editor } : {}),
         };

@@ -91,6 +91,16 @@ export function initDB(dbPath = "claude-monitor.db"): Database {
     db.exec("ALTER TABLE sessions ADD COLUMN notes TEXT");
   } catch { /* already exists */ }
 
+  // Add terminal_info column for terminal session reconnection
+  try {
+    db.exec("ALTER TABLE sessions ADD COLUMN terminal_info TEXT");
+  } catch { /* already exists */ }
+
+  // Add reviewed_at column for session review tracking
+  try {
+    db.exec("ALTER TABLE sessions ADD COLUMN reviewed_at TEXT");
+  } catch { /* already exists */ }
+
   // Add cost tracking columns (populated via status line)
   try {
     db.exec("ALTER TABLE sessions ADD COLUMN cost_usd REAL");
@@ -141,6 +151,20 @@ export function initDB(dbPath = "claude-monitor.db"): Database {
     `);
     db.exec("PRAGMA foreign_keys = ON");
   }
+
+  // Create monthly_costs table for account-level monthly cost tracking
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS monthly_costs (
+      month TEXT PRIMARY KEY,
+      total_cost_usd REAL NOT NULL,
+      input_tokens INTEGER,
+      output_tokens INTEGER,
+      cache_creation_tokens INTEGER,
+      cache_read_tokens INTEGER,
+      total_tokens INTEGER,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
 
   // Migrate events table: add 'user_prompt' to CHECK constraint
   try {

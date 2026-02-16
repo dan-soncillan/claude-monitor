@@ -1,8 +1,20 @@
 import { create } from "zustand";
-import type { Session } from "@claude-monitor/shared";
+import type { Session, TerminalInfo } from "@claude-monitor/shared";
 
 // Statuses that require user attention and trigger unseen highlighting
 const ATTENTION_STATUSES = new Set(["completed", "waiting_input", "error"]);
+
+/** Parse terminal_info if it's a JSON string */
+function parseSession(session: Session): Session {
+  if (session.terminal_info && typeof session.terminal_info === "string") {
+    try {
+      session.terminal_info = JSON.parse(session.terminal_info) as TerminalInfo;
+    } catch {
+      session.terminal_info = null;
+    }
+  }
+  return session;
+}
 
 interface SessionState {
   sessions: Session[];
@@ -19,22 +31,24 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   selectedSessionId: null,
   setSessions: (sessions) =>
     set((state) => {
-      const apiIds = new Set(sessions.map((s) => s.id));
+      const parsedSessions = sessions.map(parseSession);
+      const apiIds = new Set(parsedSessions.map((s) => s.id));
       return {
-        sessions: [...sessions].sort((a, b) => b.updated_at.localeCompare(a.updated_at)),
+        sessions: [...parsedSessions].sort((a, b) => b.updated_at.localeCompare(a.updated_at)),
         selectedSessionId: state.selectedSessionId && !apiIds.has(state.selectedSessionId)
           ? null : state.selectedSessionId,
       };
     }),
   updateSession: (session) =>
     set((state) => {
-      const idx = state.sessions.findIndex((s) => s.id === session.id);
+      const parsedSession = parseSession(session);
+      const idx = state.sessions.findIndex((s) => s.id === parsedSession.id);
       if (idx >= 0) {
         const updated = [...state.sessions];
-        updated[idx] = session;
+        updated[idx] = parsedSession;
         return { sessions: updated };
       }
-      return { sessions: [session, ...state.sessions] };
+      return { sessions: [parsedSession, ...state.sessions] };
     }),
   removeSession: (id) =>
     set((state) => ({
