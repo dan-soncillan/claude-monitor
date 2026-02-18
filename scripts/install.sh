@@ -25,9 +25,9 @@ HOOKS_JSON=$("$SCRIPT_DIR/generate-settings.sh" "$HOOKS_DIR")
 if [ ! -f "$SETTINGS_FILE" ]; then
   echo "Creating new settings file..."
   mkdir -p "$(dirname "$SETTINGS_FILE")"
-  # Add statusLine configuration for cost tracking
-  STATUSLINE_CMD="bash ${HOOKS_DIR}/statusline.sh"
-  echo "$HOOKS_JSON" | jq --arg cmd "$STATUSLINE_CMD" '.statusLine = { type: "command", command: $cmd }' > "$SETTINGS_FILE"
+  # Note: statusLine hook disabled due to API cost concerns (ccusage calls)
+  # See: hooks/statusline.sh
+  echo "$HOOKS_JSON" > "$SETTINGS_FILE"
   echo "Settings created successfully."
 else
   echo "Existing settings file found."
@@ -50,9 +50,9 @@ else
   # Merge hooks into existing settings
   MERGED=$(jq -s '.[0] * .[1]' "$SETTINGS_FILE" <(echo "$HOOKS_JSON"))
 
-  # Add statusLine configuration for cost tracking
-  STATUSLINE_CMD="bash ${HOOKS_DIR}/statusline.sh"
-  MERGED=$(echo "$MERGED" | jq --arg cmd "$STATUSLINE_CMD" '.statusLine = { type: "command", command: $cmd }')
+  # Note: statusLine hook disabled due to API cost concerns (ccusage calls)
+  # If previously enabled, remove it from settings
+  MERGED=$(echo "$MERGED" | jq 'del(.statusLine)')
 
   echo "$MERGED" > "$SETTINGS_FILE"
   echo "Settings updated successfully."
