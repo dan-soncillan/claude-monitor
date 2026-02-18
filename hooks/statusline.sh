@@ -28,47 +28,7 @@ if [ -n "$SESSION_ID" ] && [ -n "$COST_USD" ]; then
     --connect-timeout 1 --max-time 2 2>/dev/null &
 fi
 
-# --- Part 2: Display monthly cost + POST to monitor ---
-CCUSAGE_JSON=$(npx ccusage@16.2.0 monthly --json --order desc 2>/dev/null)
-USD=$(echo "$CCUSAGE_JSON" | jq -r '.monthly[0].totalCost // empty')
-
-if [ -z "$USD" ] || [ "$USD" = "null" ]; then
-  echo "💰 ¥-- monthly"
-  exit 0
-fi
-
-# POST monthly cost to monitor (background, non-blocking)
-MONTH=$(echo "$CCUSAGE_JSON" | jq -r '.monthly[0].month // empty')
-if [ -n "$MONTH" ]; then
-  curl -s -X POST "${MONITOR_URL}/api/monthly-cost" \
-    -H "Content-Type: application/json" \
-    -d "$(echo "$CCUSAGE_JSON" | jq -c '.monthly[0]')" \
-    --connect-timeout 1 --max-time 2 2>/dev/null &
-fi
-
-# Get USD/JPY rate (cached for 6 hours)
-CACHE_FILE="$HOME/.claude/.usd_jpy_rate"
-RATE=""
-if [ -f "$CACHE_FILE" ]; then
-  CACHE_AGE=$(( $(date +%s) - $(stat -f %m "$CACHE_FILE") ))
-  if [ "$CACHE_AGE" -lt 21600 ]; then
-    RATE=$(cat "$CACHE_FILE")
-  fi
-fi
-if [ -z "$RATE" ]; then
-  RATE=$(curl -s "https://api.exchangerate-api.com/v4/latest/USD" | jq -r '.rates.JPY // empty' 2>/dev/null)
-  if [ -n "$RATE" ]; then
-    echo "$RATE" > "$CACHE_FILE"
-  else
-    RATE=150
-  fi
-fi
-
-# Calculate JPY (rounded to integer)
-JPY=$(echo "$USD * $RATE" | bc 2>/dev/null | cut -d. -f1)
-if [ -z "$JPY" ]; then
-  JPY=$(jq -n "$USD * $RATE | round")
-fi
-
-JPY_FMT=$(printf "%'d" "$JPY" 2>/dev/null || echo "$JPY")
-echo "💰 ¥${JPY_FMT} monthly"
+# --- Part 2: Display monthly cost (DISABLED to avoid API cost spike) ---
+# Disabled ccusage call - was calling Anthropic API on every prompt, causing invoice spike
+# To check costs, run: npx ccusage@16.2.0 monthly
+echo "💰 ¥-- monthly"
